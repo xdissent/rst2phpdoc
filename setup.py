@@ -12,7 +12,7 @@ def do_setup():
         author_email='xdissent@gmail.com',
         license='GPL',
         packages=['docutils.writers.phpdoc'],
-        package_dir={'docutils.writers.phpdoc': 'writer'},
+        package_dir={'docutils.writers.phpdoc': 'phpdoc'},
         scripts=['rst2phpdoc.py']
     )
     return dist
