@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import re
 import string
 from docutils import writers, nodes, languages
@@ -51,7 +49,7 @@ class PHPDocTranslator(nodes.NodeVisitor):
         self.doc_header = [
             self.XML_DECL % (document.settings.output_encoding,),
             self.DOCTYPE_DECL % (self.doctype,),
-            '<%s>\n' % (self.doctype,),
+            '<%s id={@id}>\n' % (self.doctype,),
         ]
         self.doc_footer = [
             '</%s>\n' % (self.doctype,)
@@ -368,7 +366,8 @@ class PHPDocTranslator(nodes.NodeVisitor):
         #     in any possible child elements (not something I
         #     want to do).
 
-        docinfo = ['<%sinfo>\n' % self.doctype]
+        # docinfo = ['<%sinfo>\n' % self.doctype]
+        docinfo = []
 
         address = ''
         authors = []
@@ -380,7 +379,7 @@ class PHPDocTranslator(nodes.NodeVisitor):
         releaseinfo = ''
         revision,version = '',''
  
-        docinfo.append('<title>%s</title>\n' % self.title)
+        docinfo.append('<refnamediv><refname>%s</refname></refnamediv>\n' % self.title)
         if self.subtitle:
             docinfo.append('<subtitle>%s</subtitle>\n' % self.subtitle)
 
@@ -420,14 +419,18 @@ class PHPDocTranslator(nodes.NodeVisitor):
                 print n.astext()
                 raise self.unimplemented_visit(n)
 
+        docinfo.append('<refsynopsisdiv>')
+
         # can only add author if name is present
         # since contact is associate with author, the contact
         # can also only be added if an author name is given.
         if author:
             docinfo.append('<author>\n')
-            docinfo.append('<othername>%s</othername>\n' % author)
+            docinfo.append(author)
             if contact:
-                docinfo.append('<email>%s</email>\n' % contact)
+                docinfo.append('<authorblurb>')
+                docinfo.append('{@link mailto:%s %s}\n' % (contact, contact))
+                docinfo.append('</authorblurb>')
             docinfo.append('</author>\n')
 
         if authors:
@@ -436,6 +439,8 @@ class PHPDocTranslator(nodes.NodeVisitor):
                 docinfo.append(
                     '<author><othername>%s</othername></author>\n' % name)
             docinfo.append('</authorgroup>\n')
+        
+        docinfo.append('</refsynopsisdiv>')
 
         if revision or version:
             edition = version
@@ -463,8 +468,8 @@ class PHPDocTranslator(nodes.NodeVisitor):
             docinfo.append('<address xml:space="preserve">' + 
                 address + '</address>\n')
 
-        if len(docinfo) > 1:
-            docinfo.append('</%sinfo>\n' % self.doctype)
+#         if len(docinfo) > 1:
+#             docinfo.append('</%sinfo>\n' % self.doctype)
 
         self.docinfo = docinfo
 
@@ -851,6 +856,11 @@ class PHPDocTranslator(nodes.NodeVisitor):
     def visit_section(self, node):
         if self.section == 0 and self.doctype == 'book':
             self.body.append(self.starttag(node, 'chapter'))
+        elif self.doctype == 'refentry':
+            id = '{@id %s}' % node['ids'][0];
+            self.body.append(
+                self.starttag(node, 'refsect%s' % (self.section + 1), id=id)
+            )
         else:
             self.body.append(self.starttag(node, 'section'))
         self.section += 1
@@ -860,7 +870,7 @@ class PHPDocTranslator(nodes.NodeVisitor):
         if self.section == 0 and self.doctype == 'book':
             self.body.append('</chapter>\n')
         else:
-            self.body.append('</section>\n')
+            self.body.append('</refsect%s>\n' % (self.section + 1))
 
     def visit_sidebar(self, node):
         self.body.append(self.starttag(node, 'sidebar'))
