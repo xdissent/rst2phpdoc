@@ -22,7 +22,7 @@ class Writer(writers.Writer):
     )
     
     """DocBook does it's own section numbering"""
-    settings_default_overrides = {'enable_section_numbering': 0}
+    settings_default_overrides = {'enable_section_numbering': 0, 'use_latex_toc': True}
 
     output = None
     """Final translated form of `document`."""
@@ -65,10 +65,13 @@ class PHPDocTranslator(nodes.NodeVisitor):
         self.subtitle = ''
 
     def astext(self):
-        return ''.join(self.doc_header
+        output = ''.join(self.doc_header
                     + self.docinfo
                     + self.body
                     + self.doc_footer)
+        toc = '<section>\n<title>Contents</title>\n</section>'
+        output = output.replace(toc, '{@toc}')
+        return output
 
     def encode(self, text):
         """Encode special characters in `text` & return."""
@@ -155,7 +158,10 @@ class PHPDocTranslator(nodes.NodeVisitor):
         return self.starttag(node, tagname, suffix, infix=' /', **attributes)
 
     def visit_Text(self, node):
-        self.body.append(self.encode(node.astext()))
+        if isinstance(node.parent, nodes.literal_block):
+            self.body.append(node.astext())
+        else:
+            self.body.append(self.encode(node.astext()))
 
     def depart_Text(self, node):
         pass
@@ -733,9 +739,14 @@ class PHPDocTranslator(nodes.NodeVisitor):
         self.body.append('</literal>')
 
     def visit_literal_block(self, node):
-        self.body.append(self.starttag(node, 'programlisting'))
+        attrs = {}
+        if node.astext().startswith('<?'):
+            attrs['role'] = 'php'
+        self.body.append(self.starttag(node, 'programlisting', **attrs))
+        self.body.append('<![CDATA[')
 
     def depart_literal_block(self, node):
+        self.body.append(']]>')
         self.body.append('</programlisting>\n')
 
     def visit_note(self, node):
@@ -808,6 +819,7 @@ class PHPDocTranslator(nodes.NodeVisitor):
     visit_problematic = depart_problematic = lambda self, node: None
 
     def visit_raw(self, node):
+        print "***"
         if node.has_key('format') and node['format'] == 'docbook':
             self.body.append(node.astext())
         raise nodes.SkipNode
@@ -869,8 +881,10 @@ class PHPDocTranslator(nodes.NodeVisitor):
         self.section -= 1
         if self.section == 0 and self.doctype == 'book':
             self.body.append('</chapter>\n')
-        else:
+        elif self.doctype == 'refentry':
             self.body.append('</refsect%s>\n' % (self.section + 1))
+        else:
+            self.body.append('</section>')
 
     def visit_sidebar(self, node):
         self.body.append(self.starttag(node, 'sidebar'))
