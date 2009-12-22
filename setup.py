@@ -11,8 +11,8 @@ def do_setup():
         author='Greg Thornton',
         author_email='xdissent@gmail.com',
         license='GPL',
-        packages=['docutils.writers'],
-        package_dir={'docutils.writers':'writer'},
+        packages=['docutils.writers.phpdoc'],
+        package_dir={'docutils.writers.phpdoc': 'writer'},
         scripts=['rst2phpdoc.py']
     )
     return dist
