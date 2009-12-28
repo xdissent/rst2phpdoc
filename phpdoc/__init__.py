@@ -49,7 +49,7 @@ class PHPDocTranslator(nodes.NodeVisitor):
         self.doc_header = [
             self.XML_DECL % (document.settings.output_encoding,),
             self.DOCTYPE_DECL % (self.doctype,),
-            '<%s id={@id}>\n' % (self.doctype,),
+            '<%s id="{@id}">\n' % (self.doctype,),
         ]
         self.doc_footer = [
             '</%s>\n' % (self.doctype,)
@@ -385,9 +385,10 @@ class PHPDocTranslator(nodes.NodeVisitor):
         releaseinfo = ''
         revision,version = '',''
  
-        docinfo.append('<refnamediv><refname>%s</refname></refnamediv>\n' % self.title)
+        docinfo.append('<refnamediv>\n<refname>%s</refname>\n' % self.title)
         if self.subtitle:
-            docinfo.append('<subtitle>%s</subtitle>\n' % self.subtitle)
+            docinfo.append('<refpurpose>%s</refpurpose>\n' % self.subtitle)
+        docinfo.append('</refnamediv>\n')
 
         for n in node:
             if isinstance(n, nodes.address):
@@ -743,10 +744,10 @@ class PHPDocTranslator(nodes.NodeVisitor):
         if node.astext().startswith('<?'):
             attrs['role'] = 'php'
         self.body.append(self.starttag(node, 'programlisting', **attrs))
-        self.body.append('<![CDATA[')
+        self.body.append('<![CDATA[\n')
 
     def depart_literal_block(self, node):
-        self.body.append(']]>')
+        self.body.append('\n]]>')
         self.body.append('</programlisting>\n')
 
     def visit_note(self, node):
@@ -819,12 +820,27 @@ class PHPDocTranslator(nodes.NodeVisitor):
     visit_problematic = depart_problematic = lambda self, node: None
 
     def visit_raw(self, node):
-        print "***"
         if node.has_key('format') and node['format'] == 'docbook':
             self.body.append(node.astext())
         raise nodes.SkipNode
-
+        
     def visit_reference(self, node):
+        attrs = []
+        
+        if node.has_key('refuri'):
+            attrs.append(node['refuri'])
+            
+        if isinstance(node.parent, nodes.section):
+            self.body.append('<para>')
+            
+        self.body.append('{@link %s ' % ' '.join(attrs))
+        
+    def depart_reference(self, node):
+        self.body.append('}')
+        if isinstance(node.parent, nodes.section):
+            self.body.append('</para>')
+            
+    def oldvisit_reference(self, node):
         atts = {}
         if node.has_key('refuri'):
             atts['url'] = node['refuri']
@@ -841,7 +857,7 @@ class PHPDocTranslator(nodes.NodeVisitor):
             self.body.append('<para>')
         self.body.append(self.starttag(node, self.context[-1], '', **atts))
 
-    def depart_reference(self, node):
+    def olddepart_reference(self, node):
         self.body.append('</%s>' % (self.context.pop(),))
         # if parent is a section, 
         # wrap link in a para
